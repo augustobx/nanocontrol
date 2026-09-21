@@ -2,7 +2,7 @@
 
 Panel interno de NanoLabs para observar aplicaciones productivas, consultar métricas desde Glances y gestionar backups locales y externos sin ejecutar comandos dentro de los contenedores existentes.
 
-**Versión actual: 1.1.0**
+**Versión actual: 1.1.1**
 
 ## Qué incluye
 
@@ -64,7 +64,7 @@ https://control.nanolabs.com.ar
 El contenedor productivo de esta versión es:
 
 ```text
-nanocontrol:1.1.0
+nanocontrol:1.1.1
 ```
 
 ## Configuración
@@ -81,7 +81,7 @@ BACKUP_TIME_ZONE=America/Argentina/Buenos_Aires
 
 Las credenciales reales permanecen únicamente en `.env.production`.
 
-## Automatización 1.1.0
+## Automatización 1.1.1
 
 La configuración de cada aplicación se guarda en la SQLite propia del panel. La actualización desde 1.0.1 realiza una migración aditiva automática al arrancar y conserva aplicaciones, historial y configuración existente.
 
@@ -162,3 +162,8 @@ docker compose -f compose.production.yml ps
 ```
 
 Luego ejecutar las verificaciones de salud y probar un backup no destructivo antes de habilitar automatizaciones nuevas.
+
+
+## Diagnóstico Drive 1.1.1
+
+Los errores conocidos de OAuth ya no se muestran como trazas completas en el panel. NanoControl los clasifica y muestra una causa breve y una acción recomendada. El detalle técnico sanitizado queda disponible en el estado interno y en logs del contenedor para diagnóstico avanzado.
