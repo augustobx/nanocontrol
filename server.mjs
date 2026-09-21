@@ -10,7 +10,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { createGzip } from 'node:zlib';
 import { pipeline } from 'node:stream/promises';
 
-const APP_VERSION = '1.1.2';
+const APP_VERSION = '1.1.3';
 const root = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.resolve(process.env.DATA_DIR || path.join(root, 'data'));
 const backupDir = path.resolve(process.env.BACKUP_DIR || path.join(dataDir, 'backups'));
@@ -103,6 +103,7 @@ ensureColumn('backups', 'drive_error', 'TEXT');
 ensureColumn('backups', 'drive_attempted_at', 'TEXT');
 ensureColumn('backups', 'trigger_type', "TEXT NOT NULL DEFAULT 'manual'");
 
+db.prepare('UPDATE applications SET next_backup_at=NULL WHERE schedule_enabled=0 AND next_backup_at IS NOT NULL').run();
 db.exec('PRAGMA optimize;');
 
 const now = () => new Date().toISOString();
@@ -749,7 +750,11 @@ async function dashboard() {
   const total = Number(telemetry?.mem?.total || os.totalmem());
   const available = Number(telemetry?.mem?.available || os.freemem());
   const drive = driveConfig();
-  const driveHealth = readDriveHealth();
+  const driveEnabled = globalDriveEnabled();
+  const driveHealthStored = readDriveHealth();
+  const driveHealth = driveEnabled
+    ? driveHealthStored
+    : {...driveHealthStored,status:'disabled',error:null,action:null,technical:null,code:null,stage:null};
 
   return {
     version:APP_VERSION,
@@ -769,7 +774,7 @@ async function dashboard() {
       timeZone:defaultTimeZone
     },
     drive:{
-      enabled:globalDriveEnabled(),
+      enabled:driveEnabled,
       configured:drive.configured,
       remote:drive.remote || null,
       path:drive.folder || '/',
