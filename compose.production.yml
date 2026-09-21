@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: nanocontrol:1.0.1
+    image: nanocontrol:1.1.0
     container_name: nanocontrol
     restart: unless-stopped
     env_file:
@@ -16,7 +16,7 @@ services:
       BACKUP_DIR: /backups
       BACKUP_SOURCE_ROOT: /sources
       GLANCES_URL: http://glances:61208
-      RCLONE_CONFIG: /run/secrets/rclone.conf
+      RCLONE_CONFIG: /run/secrets/rclone.conf\n      BACKUP_TIME_ZONE: America/Argentina/Buenos_Aires
     ports:
       - "127.0.0.1:4173:4173"
     volumes:

@@ -1,0 +1,54 @@
+name: NanoControl CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'feat/**'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: JavaScript syntax
+        run: |
+          node --check server.mjs
+          node --check public/app.js
+
+      - name: Python syntax
+        run: |
+          python -m py_compile deployment-init.py deployment-verify.py
+
+      - name: Startup and SQLite migration smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/nanocontrol-data /tmp/nanocontrol-backups
+          DATA_DIR=/tmp/nanocontrol-data           BACKUP_DIR=/tmp/nanocontrol-backups           PORT=4173           NODE_ENV=test           node server.mjs >/tmp/nanocontrol.log 2>&1 &
+          PID=$!
+          trap 'kill $PID 2>/dev/null || true' EXIT
+
+          for i in $(seq 1 20); do
+            if curl --fail --silent http://127.0.0.1:4173/api/healthz >/tmp/health.json; then
+              break
+            fi
+            sleep 1
+          done
+
+          cat /tmp/health.json
+          grep -q '"ok":true' /tmp/health.json
+          grep -q '"version":"1.1.0"' /tmp/health.json
+          test -f /tmp/nanocontrol-data/nanocontrol.sqlite

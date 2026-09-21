@@ -12,5 +12,5 @@ for item in ['data', 'secrets']:
 config = root / '.env.production'
 with config.open('x') as stream:
     os.chmod(config, 0o600)
-    stream.write('ADMIN_USER=augusto\nADMIN_PASSWORD=' + secrets.token_urlsafe(32) + '\nRCLONE_REMOTE=nanolabs-drive\nRCLONE_PATH=Nanolabs/Backups/Produccion\n')
+    stream.write('ADMIN_USER=augusto\nADMIN_PASSWORD=' + secrets.token_urlsafe(32) + '\nRCLONE_REMOTE=nanolabs-drive\nRCLONE_PATH=/\nBACKUP_TIME_ZONE=America/Argentina/Buenos_Aires\n')
 print('NanoControl initialized; credentials stored only in its protected .env.production')
