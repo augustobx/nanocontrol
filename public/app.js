@@ -26,7 +26,7 @@ async function request(url,options={}){
   try{payload=await response.json()}catch{}
   if(!response.ok){
     let message=payload?.error||('Error '+response.status);
-    if(payload?.details&&payload.details!==message)message+=': '+payload.details;
+    if(payload?.action)message+=' '+payload.action;
     throw new Error(message);
   }
   return response.status===204?null:payload;
@@ -183,7 +183,7 @@ function renderAutomation(data){
 
   const error=$('#drive-error');
   if(failed&&drive.error){
-    error.textContent=(drive.stage?'Etapa '+drive.stage+': ':'')+drive.error;
+    error.textContent=(drive.stage?'Etapa '+drive.stage+': ':'')+drive.error+(drive.action?' '+drive.action:'');
     error.classList.remove('hidden');
   }else{
     error.textContent='';
