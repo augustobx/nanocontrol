@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="Panel interno de aplicaciones, consumo y backups de Nanolabs">
-  <title>Nanocontrol</title>
+  <meta name="description" content="Panel interno de aplicaciones, consumo y backups de NanoLabs">
+  <title>NanoControl</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -20,14 +20,19 @@
       <div class="server-head"><span class="pulse"></span><span id="server-state">Conectando…</span></div>
       <div class="server-row"><span>Uptime</span><strong id="server-uptime">—</strong></div>
       <div class="server-row"><span>Host</span><strong id="server-host">—</strong></div>
+      <div class="server-row"><span>Versión</span><strong id="app-version">—</strong></div>
     </div>
-    <div class="sidebar-foot"><span class="avatar">NL</span><div><strong>Administrador</strong><small>Nanolabs</small></div></div>
+    <div class="sidebar-foot"><span class="avatar">NL</span><div><strong>Administrador</strong><small>NanoLabs</small></div></div>
   </aside>
 
   <main>
     <header class="topbar">
-      <div><p class="eyebrow">INFRAESTRUCTURA</p><h1>Todo bajo control.</h1></div>
-      <div class="top-actions"><span class="updated" id="updated">Cargando datos…</span><button class="icon-button" id="refresh" aria-label="Actualizar">↻</button><button class="primary-button" id="open-app">＋ Nueva aplicación</button></div>
+      <div><p class="eyebrow">BACKUP & INFRAESTRUCTURA</p><h1>Todo bajo control.</h1></div>
+      <div class="top-actions">
+        <span class="updated" id="updated">Cargando datos…</span>
+        <button class="icon-button" id="refresh" aria-label="Actualizar">↻</button>
+        <button class="primary-button" id="open-app">＋ Nueva aplicación</button>
+      </div>
     </header>
 
     <div class="notice hidden" id="notice" role="status"></div>
@@ -40,15 +45,94 @@
     </section>
 
     <section class="panel" id="applications">
-      <div class="panel-head"><div><h2>Aplicaciones</h2><p>Estado real, consumo combinado y último respaldo.</p></div><div class="filters"><button class="filter active" data-filter="all">Todas <b id="all-count">—</b></button><button class="filter" data-filter="online">Operativas <b id="online-count">—</b></button><button class="filter" data-filter="alert">Con alertas <b id="alert-count">—</b></button></div></div>
+      <div class="panel-head">
+        <div><h2>Aplicaciones</h2><p>Estado, consumo, automatización y último respaldo.</p></div>
+        <div class="filters">
+          <button class="filter active" data-filter="all">Todas <b id="all-count">—</b></button>
+          <button class="filter" data-filter="online">Operativas <b id="online-count">—</b></button>
+          <button class="filter" data-filter="alert">Con alertas <b id="alert-count">—</b></button>
+        </div>
+      </div>
       <div class="app-table" id="app-table"><div class="loading">Consultando aplicaciones y contenedores…</div></div>
     </section>
 
     <section class="bottom-grid">
-      <article class="panel compact" id="backups"><div class="panel-head"><div><h2>Backups recientes</h2><p>Existentes y generados por Nanocontrol.</p></div><span class="legend">↓ registra la descarga</span></div><div id="backup-list"><div class="loading">Buscando respaldos…</div></div></article>
-      <article class="panel compact automation" id="automation"><div class="panel-head"><div><h2>Automatización</h2><p>Programación y destino externo.</p></div><span class="toggle" id="automation-toggle"><i></i></span></div><div class="automation-time"><span id="schedule-time">24h</span><div><strong id="schedule-title">Sin tareas activas</strong><small id="schedule-next">Configurable por aplicación</small></div></div><div class="drive-line"><span class="drive-icon">△</span><div><strong id="drive-title">Google Drive no configurado</strong><small id="drive-path">Falta autorizar rclone</small></div><span class="ok" id="drive-ok">!</span></div></article>
+      <article class="panel compact" id="backups">
+        <div class="panel-head"><div><h2>Backups recientes</h2><p>Estado local, origen y copia externa.</p></div><span class="legend">↓ registra la descarga</span></div>
+        <div id="backup-list"><div class="loading">Buscando respaldos…</div></div>
+      </article>
+
+      <article class="panel compact automation" id="automation">
+        <div class="panel-head">
+          <div><h2>Automatización</h2><p>Procesos programados y Google Drive.</p></div>
+          <span class="toggle" id="automation-toggle"><i></i></span>
+        </div>
+        <div class="automation-summary">
+          <div class="automation-time"><span id="schedule-time">0</span><div><strong id="schedule-title">Sin tareas activas</strong><small id="schedule-next">Configurá cada aplicación</small></div></div>
+          <div id="schedule-list" class="schedule-list"></div>
+        </div>
+        <div class="drive-line" id="drive-card">
+          <span class="drive-icon">△</span>
+          <div class="drive-copy"><strong id="drive-title">Google Drive</strong><small id="drive-path">Comprobando configuración…</small><small class="drive-error hidden" id="drive-error"></small></div>
+          <button class="secondary-button mini" id="test-drive" type="button">Probar</button>
+          <span class="ok" id="drive-ok">!</span>
+        </div>
+      </article>
     </section>
   </main>
+
+  <dialog id="schedule-dialog">
+    <form id="schedule-form" method="dialog">
+      <div class="dialog-head">
+        <div><p class="eyebrow">AUTOMATIZACIÓN</p><h2 id="schedule-dialog-title">Programar backup</h2><p class="dialog-subtitle" id="schedule-dialog-subtitle"></p></div>
+        <button class="close" value="cancel" formnovalidate aria-label="Cerrar">×</button>
+      </div>
+      <input type="hidden" name="appId">
+      <div class="schedule-switch">
+        <label class="switch-row"><input type="checkbox" name="enabled"><span><strong>Backup automático</strong><small>Cuando está apagado, el proceso queda únicamente manual.</small></span></label>
+      </div>
+      <div class="form-grid schedule-form-grid">
+        <label class="wide"><span>Tipo de programación</span>
+          <select name="type" id="schedule-type">
+            <option value="daily">Todos los días</option>
+            <option value="weekly">Días de la semana</option>
+            <option value="monthly">Día del mes</option>
+            <option value="interval">Cada cierta cantidad de horas</option>
+            <option value="once">Una fecha y hora</option>
+          </select>
+        </label>
+
+        <label class="schedule-field" data-schedule-field="time"><span>Hora</span><input name="time" type="time" value="03:00"></label>
+        <label class="schedule-field" data-schedule-field="interval"><span>Cada cuántas horas</span><input name="intervalHours" type="number" min="1" max="720" value="24"></label>
+        <label class="schedule-field" data-schedule-field="monthly"><span>Día del mes</span><input name="dayOfMonth" type="number" min="1" max="31" value="1"></label>
+        <label class="schedule-field wide" data-schedule-field="once"><span>Fecha y hora</span><input name="onceAt" type="datetime-local"></label>
+
+        <fieldset class="weekday-field wide schedule-field" data-schedule-field="weekly">
+          <legend>Días</legend>
+          <div class="weekday-grid">
+            <label><input type="checkbox" name="days" value="1"><span>Lun</span></label>
+            <label><input type="checkbox" name="days" value="2"><span>Mar</span></label>
+            <label><input type="checkbox" name="days" value="3"><span>Mié</span></label>
+            <label><input type="checkbox" name="days" value="4"><span>Jue</span></label>
+            <label><input type="checkbox" name="days" value="5"><span>Vie</span></label>
+            <label><input type="checkbox" name="days" value="6"><span>Sáb</span></label>
+            <label><input type="checkbox" name="days" value="0"><span>Dom</span></label>
+          </div>
+        </fieldset>
+
+        <label class="check wide"><input name="driveEnabled" type="checkbox"><span>Después del backup local, copiar también a Google Drive</span></label>
+      </div>
+      <div class="schedule-preview">
+        <span>Próxima ejecución</span>
+        <strong id="schedule-preview">Se calculará al guardar</strong>
+        <small id="schedule-timezone">Zona horaria del servidor</small>
+      </div>
+      <div class="dialog-actions">
+        <button class="secondary-button" value="cancel" formnovalidate>Cancelar</button>
+        <button class="primary-button" value="default" type="submit">Guardar programación</button>
+      </div>
+    </form>
+  </dialog>
 
   <dialog id="app-dialog">
     <form id="app-form" method="dialog">
@@ -60,14 +144,13 @@
         <label><span>Tipo de base</span><select name="dbType"><option value="none">Sin configurar</option><option value="mariadb">MariaDB</option><option value="mysql">MySQL</option><option value="postgres">PostgreSQL</option><option value="sqlite">SQLite</option></select></label>
         <label><span>Host interno de la base</span><input name="dbHost" placeholder="app-db"></label>
         <label><span>Puerto</span><input name="dbPort" type="number" min="1" max="65535" placeholder="5432"></label>
-        <label><span>Frecuencia</span><select name="intervalHours"><option value="6">Cada 6 horas</option><option value="12">Cada 12 horas</option><option value="24" selected>Diario</option><option value="168">Semanal</option></select></label>
-        <label class="check wide"><input name="scheduleEnabled" type="checkbox"><span>Activar backup automático cuando se complete la configuración segura</span></label>
-        <label class="check wide"><input name="driveEnabled" type="checkbox" checked><span>Copiar cada backup a Google Drive</span></label>
+        <label class="check wide"><input name="driveEnabled" type="checkbox" checked><span>Usar Google Drive cuando se configure la automatización</span></label>
       </div>
       <p class="form-warning">Las credenciales nunca se ingresan aquí. Para habilitar backups de una aplicación nueva hay que montar su archivo de entorno y red en el despliegue.</p>
       <div class="dialog-actions"><button class="secondary-button" value="cancel" formnovalidate>Cancelar</button><button class="primary-button" value="default" type="submit">Guardar aplicación</button></div>
     </form>
   </dialog>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="/app.js" defer></script>
 </body>
