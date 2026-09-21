@@ -59,3 +59,24 @@
   .backup-item{grid-template-columns:36px 1fr 30px}
   .backup-cloud{display:none}
 }
+
+
+/* NanoControl 1.1.2 - configuración global */
+.top-settings{white-space:nowrap}
+.settings-section{border:1px solid #e1e6ed;border-radius:14px;background:#fafbfc;padding:16px;margin-bottom:20px}
+.settings-section-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:15px}
+.settings-section-head strong,.settings-section-head small{display:block}
+.settings-section-head strong{font-size:14px}
+.settings-section-head small{font-size:12px;color:#7b8797;margin-top:4px}
+.settings-badge{font:700 10px ui-monospace,monospace;letter-spacing:.06em;border-radius:999px;padding:5px 8px;background:#eef1f5;color:#6c7887}
+.settings-badge.on{background:#e7f8f1;color:#12875f}
+.settings-badge.off{background:#f0f2f5;color:#6e7987}
+.settings-toggle-row{display:flex;gap:11px;align-items:flex-start;padding:14px;border-radius:11px;background:#fff;border:1px solid #e1e6ed}
+.settings-toggle-row input{margin-top:3px;transform:scale(1.15)}
+.settings-toggle-row strong,.settings-toggle-row small{display:block}
+.settings-toggle-row strong{font-size:13px}
+.settings-toggle-row small{font-size:12px;color:#738092;line-height:1.45;margin-top:5px}
+.settings-note{margin:11px 2px 0;color:#6f7b8b;font-size:11px;line-height:1.45}
+@media(max-width:760px){
+  .top-settings{width:100%;margin:8px 0}
+}
