@@ -10,7 +10,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { createGzip } from 'node:zlib';
 import { pipeline } from 'node:stream/promises';
 
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.1.1';
 const root = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.resolve(process.env.DATA_DIR || path.join(root, 'data'));
 const backupDir = path.resolve(process.env.BACKUP_DIR || path.join(dataDir, 'backups'));
@@ -346,6 +346,64 @@ function scrubOutput(value) {
     .slice(-6000);
 }
 
+function friendlyDriveError(value) {
+  const detail = scrubOutput(value);
+  const lower = detail.toLowerCase();
+
+  if (lower.includes('invalid_client') || lower.includes('client secret is invalid')) {
+    return {
+      code:'invalid_client',
+      summary:'Credencial OAuth inválida: el client_secret configurado en Google ya no es válido.',
+      action:'Actualizá el OAuth Client de Google y volvé a autorizar nanolabs-drive.',
+      detail
+    };
+  }
+
+  if (lower.includes('invalid_grant') || lower.includes('token has been expired or revoked') || lower.includes('token expired')) {
+    return {
+      code:'invalid_grant',
+      summary:'La autorización de Google venció o fue revocada.',
+      action:'Volvé a autorizar nanolabs-drive.',
+      detail
+    };
+  }
+
+  if (lower.includes('access_denied')) {
+    return {
+      code:'access_denied',
+      summary:'Google rechazó la autorización de acceso a Drive.',
+      action:'Revisá el usuario autorizado y aceptá los permisos solicitados.',
+      detail
+    };
+  }
+
+  if (lower.includes('insufficient permission') || lower.includes('insufficientpermissions') || lower.includes('403 forbidden')) {
+    return {
+      code:'permission_denied',
+      summary:'La cuenta autorizada no tiene permisos suficientes sobre Google Drive.',
+      action:'Revisá el scope de Drive y el acceso a la carpeta raíz configurada.',
+      detail
+    };
+  }
+
+  if (lower.includes('root_folder_id') || lower.includes('directory not found') || lower.includes('404 not found')) {
+    return {
+      code:'root_not_found',
+      summary:'No se pudo acceder a la carpeta raíz configurada en Google Drive.',
+      action:'Revisá root_folder_id y que la cuenta autorizada tenga acceso a esa carpeta.',
+      detail
+    };
+  }
+
+  const firstUseful = detail.split(/\r?\n/).map(line=>line.trim()).filter(Boolean).slice(-1)[0] || 'Error desconocido de Google Drive';
+  return {
+    code:'drive_error',
+    summary:firstUseful.slice(0,350),
+    action:'Revisá el detalle técnico y la configuración de rclone.',
+    detail
+  };
+}
+
 function run(command,args,options={}) {
   return new Promise((resolve,reject) => {
     const child = spawn(command,args,{
@@ -426,13 +484,22 @@ function driveConfig() {
 
 function readDriveHealth() {
   const row = q.setting.get('drive_health');
-  if (!row) return {status:'unknown',error:null,checkedAt:null,stage:null};
+  if (!row) return {status:'unknown',error:null,action:null,technical:null,code:null,checkedAt:null,stage:null};
   try { return JSON.parse(row.value); }
-  catch { return {status:'unknown',error:'Estado de Drive inválido',checkedAt:null,stage:null}; }
+  catch { return {status:'unknown',error:'Estado de Drive inválido',action:'Volvé a ejecutar la prueba de Drive.',technical:null,code:'state_invalid',checkedAt:null,stage:null}; }
 }
 
 function recordDriveHealth(status,error=null,stage=null) {
-  const value = {status,error:error ? scrubOutput(error) : null,stage,checkedAt:now()};
+  const parsed = error ? friendlyDriveError(error) : null;
+  const value = {
+    status,
+    error:parsed?.summary || null,
+    action:parsed?.action || null,
+    technical:parsed?.detail || null,
+    code:parsed?.code || null,
+    stage,
+    checkedAt:now()
+  };
   q.upsertSetting.run('drive_health',JSON.stringify(value));
   return value;
 }
@@ -576,8 +643,9 @@ async function performBackup(app,triggerType) {
         driveStatus = await uploadDrive(filePath,filename,app.name);
       } catch (error) {
         driveStatus = 'failed';
-        driveError = scrubOutput(error.details || error.message);
-        console.error('Drive [' + (error.stage || 'unknown') + ']:',driveError);
+        const parsed = friendlyDriveError(error.details || error.message);
+        driveError = parsed.summary + ' ' + parsed.action;
+        console.error('Drive [' + (error.stage || 'unknown') + ']:',parsed.detail);
       }
     }
 
@@ -597,9 +665,11 @@ async function retryDrive(backupId) {
     const status = await uploadDrive(backup.file_path,backup.filename,backup.application_name);
     q.driveResult.run(status,null,now(),backup.id);
   } catch (error) {
-    const details = scrubOutput(error.details || error.message);
-    q.driveResult.run('failed',details,now(),backup.id);
-    throw new Error(details || error.message);
+    const parsed = friendlyDriveError(error.details || error.message);
+    const message = parsed.summary + ' ' + parsed.action;
+    q.driveResult.run('failed',message,now(),backup.id);
+    console.error('Drive retry [' + (error.stage || 'unknown') + ']:',parsed.detail);
+    throw new Error(message);
   }
   return q.backup.get(backup.id);
 }
@@ -728,12 +798,14 @@ async function api(req,res,url) {
       recordDriveHealth('connected',null,'test');
       return sendJson(res,200,result);
     } catch (error) {
-      const details = scrubOutput(error.details || error.message);
-      recordDriveHealth('failed',details,error.stage || 'test');
+      const parsed = friendlyDriveError(error.details || error.message);
+      const health = recordDriveHealth('failed',parsed.detail,error.stage || 'test');
       return sendJson(res,503,{
-        error:'Google Drive falló en ' + (error.stage || 'prueba'),
-        details:details || error.message,
-        stage:error.stage || 'test'
+        error:parsed.summary,
+        action:parsed.action,
+        code:parsed.code,
+        stage:error.stage || 'test',
+        details:health.technical
       });
     }
   }
