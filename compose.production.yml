@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: nanocontrol:1.1.0
+    image: nanocontrol:1.1.1
     container_name: nanocontrol
     restart: unless-stopped
     env_file:
