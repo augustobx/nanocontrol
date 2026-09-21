@@ -55,7 +55,8 @@ for app in data['apps']:
 print('Backups registered:', len(data['backups']))
 print('Automations enabled:', data['automation']['enabledCount'])
 print('Automation timezone:', data['automation']['timeZone'])
-print('Drive backups enabled:', data['drive']['enabled'])\nprint('Drive configured:', data['drive']['configured'])
+print('Drive backups enabled:', data['drive']['enabled'])
+print('Drive configured:', data['drive']['configured'])
 print('Drive status:', data['drive'].get('status'))
 if data['drive'].get('error'):
     print('Drive last error:', data['drive']['error'])
