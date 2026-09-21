@@ -2,7 +2,7 @@
 
 Panel interno de NanoLabs para observar aplicaciones productivas, consultar métricas desde Glances y gestionar backups locales y externos sin ejecutar comandos dentro de los contenedores existentes.
 
-**Versión actual: 1.1.1**
+**Versión actual: 1.1.2**
 
 ## Qué incluye
 
@@ -64,7 +64,7 @@ https://control.nanolabs.com.ar
 El contenedor productivo de esta versión es:
 
 ```text
-nanocontrol:1.1.1
+nanocontrol:1.1.2
 ```
 
 ## Configuración
@@ -81,7 +81,7 @@ BACKUP_TIME_ZONE=America/Argentina/Buenos_Aires
 
 Las credenciales reales permanecen únicamente en `.env.production`.
 
-## Automatización 1.1.1
+## Automatización 1.1.2
 
 La configuración de cada aplicación se guarda en la SQLite propia del panel. La actualización desde 1.0.1 realiza una migración aditiva automática al arrancar y conserva aplicaciones, historial y configuración existente.
 
@@ -167,3 +167,23 @@ Luego ejecutar las verificaciones de salud y probar un backup no destructivo ant
 ## Diagnóstico Drive 1.1.1
 
 Los errores conocidos de OAuth ya no se muestran como trazas completas en el panel. NanoControl los clasifica y muestra una causa breve y una acción recomendada. El detalle técnico sanitizado queda disponible en el estado interno y en logs del contenedor para diagnóstico avanzado.
+
+
+## Configuración global de Google Drive — 1.1.2
+
+NanoControl incorpora un botón **Configuración** con un interruptor global para las copias externas a Google Drive.
+
+Por defecto, el interruptor queda **desactivado**.
+
+Cuando Google Drive está desactivado:
+
+- los backups manuales siguen funcionando;
+- los backups automáticos siguen ejecutándose según su día/hora/frecuencia;
+- los archivos se guardan normalmente en `/opt/backups/nanocontrol`;
+- los backups quedan en estado listo y pueden descargarse desde el panel;
+- no se ejecuta `rclone` ni se intenta autenticar contra Google;
+- apagar Drive no altera `next_backup_at` ni desactiva ninguna automatización.
+
+La preferencia `drive_enabled` de cada aplicación se conserva como segundo nivel. Una copia externa solo se intenta cuando **el interruptor global está activo y la aplicación permite Drive**.
+
+El botón **Probar Drive** sigue disponible para diagnosticar la conexión antes de volver a activar las copias externas.
