@@ -1,0 +1,65 @@
+
+# ============================================================
+# NANOCONTROL SAFE GITIGNORE
+# ============================================================
+
+# Secrets
+.env
+.env.*
+!.env.example
+!.env.production.example
+
+# Keys / certificates
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Database backups / dumps
+*.sql
+*.dump
+*.backup
+*.bak
+*.sqlite
+*.sqlite3
+*.db
+
+# Compressed backup files
+*.gz
+*.tgz
+*.tar
+*.tar.gz
+*.zip
+*.7z
+
+# Runtime backup directories
+backup/
+backups/
+dumps/
+
+# Logs / temporary files
+logs/
+*.log
+tmp/
+temp/
+
+# Dependencies / cache
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# NanoControl - production/runtime
+data/
+secrets/
+staging-drive/
+rollback-before-drive-*/
+nanocontrol-release.tar.gz
+.env.production

@@ -1,0 +1,101 @@
+services:
+  nanocontrol:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: nanocontrol:1.0.1
+    container_name: nanocontrol
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      NODE_ENV: production
+      APP_ORIGIN: https://control.nanolabs.com.ar
+      PORT: "4173"
+      DATA_DIR: /state
+      BACKUP_DIR: /backups
+      BACKUP_SOURCE_ROOT: /sources
+      GLANCES_URL: http://glances:61208
+      RCLONE_CONFIG: /run/secrets/rclone.conf
+    ports:
+      - "127.0.0.1:4173:4173"
+    volumes:
+      - /opt/apps/nanocontrol/data:/state
+      - /opt/backups/nanocontrol:/backups
+      - /opt/apps/nanocontrol/secrets:/run/secrets
+      - /opt/apps/onlyfood/.env.docker:/run/app-env/onlyfood.env:ro
+      - /opt/apps/onlyerp/.env:/run/app-env/onlyerp.env:ro
+      - /opt/apps/onlypadel/.env:/run/app-env/onlypadel.env:ro
+      - /opt/apps/onlygym/.env:/run/app-env/onlygym.env:ro
+      - /opt/apps/onlycars/.env.docker:/run/app-env/onlycars.env:ro
+      - /opt/apps/onlymob/.env:/run/app-env/onlymob.env:ro
+      - /opt/apps/onlyturn/.env:/run/app-env/onlyturn.env:ro
+      - /opt/apps/nanolabs/.env:/run/app-env/nanolabs.env:ro
+      - /opt/apps/nanokeys/data:/sources/nanokeys:ro
+      - /opt/backups/onlyfood:/legacy-backups/onlyfood:ro
+      - /opt/backups/tommasi:/legacy-backups/onlyerp:ro
+      - /opt/backups/onlycars:/legacy-backups/onlycars:ro
+      - /opt/backups/onlymob:/legacy-backups/onlymob:ro
+      - /opt/backups/onlyturn:/legacy-backups/onlyturn:ro
+      - /opt/backups/nanokeys:/legacy-backups/nanokeys:ro
+    networks:
+      - proxy
+      - onlyfood
+      - onlyerp
+      - onlypadel
+      - onlygym
+      - onlycars
+      - onlymob
+      - onlyturn
+      - nanolabs
+      - nanokeys
+    read_only: true
+    cpus: 1.0
+    mem_limit: 768m
+    pids_limit: 64
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    cap_add:
+      - DAC_READ_SEARCH
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4173/api/healthz',{headers:{authorization:'Basic '+Buffer.from(process.env.ADMIN_USER+':'+process.env.ADMIN_PASSWORD).toString('base64')}}).then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+networks:
+  proxy:
+    external: true
+    name: proxy
+  onlyfood:
+    external: true
+    name: onlyfood_internal
+  onlyerp:
+    external: true
+    name: onlyerp_internal
+  onlypadel:
+    external: true
+    name: onlypadel-internal
+  onlygym:
+    external: true
+    name: onlygym_internal
+  onlycars:
+    external: true
+    name: onlycars_internal
+  onlymob:
+    external: true
+    name: onlymob-internal
+  onlyturn:
+    external: true
+    name: onlyturn-internal
+  nanolabs:
+    external: true
+    name: nanolabs_backend
+  nanokeys:
+    external: true
+    name: nanokeys_nanokeys-private
