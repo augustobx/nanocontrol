@@ -31,6 +31,7 @@
       <div class="top-actions">
         <span class="updated" id="updated">Cargando datos…</span>
         <button class="icon-button" id="refresh" aria-label="Actualizar">↻</button>
+        <button class="secondary-button top-settings" id="open-settings" type="button">⚙ Configuración</button>
         <button class="primary-button" id="open-app">＋ Nueva aplicación</button>
       </div>
     </header>
@@ -81,6 +82,35 @@
     </section>
   </main>
 
+  <dialog id="settings-dialog">
+    <form id="settings-form" method="dialog">
+      <div class="dialog-head">
+        <div><p class="eyebrow">CONFIGURACIÓN</p><h2>NanoControl</h2><p class="dialog-subtitle">Preferencias globales del sistema de backups.</p></div>
+        <button class="close" value="cancel" formnovalidate aria-label="Cerrar">×</button>
+      </div>
+
+      <section class="settings-section">
+        <div class="settings-section-head">
+          <div><strong>Google Drive</strong><small id="settings-drive-status">Cargando estado…</small></div>
+          <span class="settings-badge" id="settings-drive-badge">—</span>
+        </div>
+        <label class="settings-toggle-row">
+          <input type="checkbox" name="driveBackupsEnabled">
+          <span>
+            <strong>Copiar backups a Google Drive</strong>
+            <small>Si está desactivado, los backups manuales y automáticos siguen ejecutándose normalmente en el servidor y quedan disponibles para descargar.</small>
+          </span>
+        </label>
+        <p class="settings-note">Este interruptor es global. Las automatizaciones de backup no se desactivan al apagar Drive.</p>
+      </section>
+
+      <div class="dialog-actions">
+        <button class="secondary-button" value="cancel" formnovalidate>Cancelar</button>
+        <button class="primary-button" value="default" type="submit">Guardar configuración</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="schedule-dialog">
     <form id="schedule-form" method="dialog">
       <div class="dialog-head">
@@ -120,7 +150,7 @@
           </div>
         </fieldset>
 
-        <label class="check wide"><input name="driveEnabled" type="checkbox"><span>Después del backup local, copiar también a Google Drive</span></label>
+        <label class="check wide"><input name="driveEnabled" type="checkbox"><span>Copiar también a Google Drive cuando Drive esté activado globalmente</span></label>
       </div>
       <div class="schedule-preview">
         <span>Próxima ejecución</span>
@@ -144,7 +174,7 @@
         <label><span>Tipo de base</span><select name="dbType"><option value="none">Sin configurar</option><option value="mariadb">MariaDB</option><option value="mysql">MySQL</option><option value="postgres">PostgreSQL</option><option value="sqlite">SQLite</option></select></label>
         <label><span>Host interno de la base</span><input name="dbHost" placeholder="app-db"></label>
         <label><span>Puerto</span><input name="dbPort" type="number" min="1" max="65535" placeholder="5432"></label>
-        <label class="check wide"><input name="driveEnabled" type="checkbox" checked><span>Usar Google Drive cuando se configure la automatización</span></label>
+        <label class="check wide"><input name="driveEnabled" type="checkbox" checked><span>Permitir Google Drive para esta aplicación cuando esté activado globalmente</span></label>
       </div>
       <p class="form-warning">Las credenciales nunca se ingresan aquí. Para habilitar backups de una aplicación nueva hay que montar su archivo de entorno y red en el despliegue.</p>
       <div class="dialog-actions"><button class="secondary-button" value="cancel" formnovalidate>Cancelar</button><button class="primary-button" value="default" type="submit">Guardar aplicación</button></div>
