@@ -1,64 +1,164 @@
-# Nanocontrol
+# NanoControl
 
-Panel interno para observar las aplicaciones productivas de Nanolabs, consultar métricas desde Glances y gestionar backups sin ejecutar comandos dentro de los contenedores existentes.
+Panel interno de NanoLabs para observar aplicaciones productivas, consultar métricas desde Glances y gestionar backups locales y externos sin ejecutar comandos dentro de los contenedores existentes.
+
+**Versión actual: 1.1.0**
 
 ## Qué incluye
 
-- Estado HTTP de las nueve aplicaciones relevadas.
-- CPU y RAM combinadas de sus contenedores, obtenidas desde la API de Glances.
-- Inventario de backups existentes y registro de cada descarga.
-- Dumps consistentes por conexión de red: PostgreSQL, MySQL/MariaDB y SQLite.
-- Programación por aplicación y copia opcional a Google Drive con `rclone`.
-- Registro persistente en SQLite propio de Nanocontrol.
+- Estado HTTP y consumo de CPU/RAM de las aplicaciones productivas.
+- Dumps consistentes de PostgreSQL, MySQL/MariaDB y SQLite.
+- Historial de backups, descargas y origen manual/automático.
+- Automatización configurable por aplicación:
+  - cada N horas;
+  - todos los días a una hora;
+  - días específicos de la semana;
+  - día específico del mes;
+  - fecha y hora única.
+- Próxima ejecución visible por aplicación y resumen de todos los procesos automatizados.
+- Copia opcional a Google Drive mediante `rclone`.
+- Diagnóstico de Drive con etapa del fallo y salida útil de `rclone`.
+- Reintento de Drive para un backup local ya generado.
+- Registro persistente en SQLite propio de NanoControl.
 - Acceso protegido con autenticación HTTP Basic.
 
-## Límites de seguridad
+## Seguridad
 
-Nanocontrol no monta `/var/run/docker.sock`, no utiliza `docker exec` y no modifica contenedores existentes. Los archivos de entorno de cada aplicación y los directorios históricos de backups se montan como solo lectura. Los nuevos backups se guardan únicamente en `/opt/backups/nanocontrol`.
+NanoControl no monta `/var/run/docker.sock`, no usa `docker exec` y no modifica los contenedores de las aplicaciones.
 
-## Desarrollo local
+Los archivos de entorno productivos y directorios históricos se montan como solo lectura. Los nuevos backups se escriben únicamente en `/opt/backups/nanocontrol`.
+
+El contenedor mantiene:
+
+- filesystem de aplicación en modo `read_only`;
+- `cap_drop: ALL`;
+- únicamente `DAC_READ_SEARCH` para leer montajes protegidos;
+- `no-new-privileges`;
+- límite de 1 CPU, 768 MB de RAM y 64 procesos;
+- puerto 4173 publicado solo en `127.0.0.1`.
+
+## Producción
+
+Ruta:
+
+```text
+/opt/apps/nanocontrol
+```
+
+Archivos/directorios protegidos que no se versionan:
+
+```text
+.env.production
+data/
+secrets/
+staging-drive/
+rollback-before-drive-*/
+```
+
+El servicio se publica mediante Nginx Proxy Manager en:
+
+```text
+https://control.nanolabs.com.ar
+```
+
+El contenedor productivo de esta versión es:
+
+```text
+nanocontrol:1.1.0
+```
+
+## Configuración
+
+Ejemplo:
+
+```dotenv
+ADMIN_USER=augusto
+ADMIN_PASSWORD=use-una-clave-larga-y-unica
+RCLONE_REMOTE=nanolabs-drive
+RCLONE_PATH=/
+BACKUP_TIME_ZONE=America/Argentina/Buenos_Aires
+```
+
+Las credenciales reales permanecen únicamente en `.env.production`.
+
+## Automatización 1.1.0
+
+La configuración de cada aplicación se guarda en la SQLite propia del panel. La actualización desde 1.0.1 realiza una migración aditiva automática al arrancar y conserva aplicaciones, historial y configuración existente.
+
+Modos disponibles:
+
+- **Intervalo:** cada 1 a 720 horas.
+- **Diario:** todos los días a una hora concreta.
+- **Semanal:** uno o más días, a una hora concreta.
+- **Mensual:** un día del mes entre 1 y 31 y una hora.
+- **Una vez:** fecha y hora puntual.
+
+La zona horaria por defecto es `America/Argentina/Buenos_Aires`.
+
+Un backup manual no altera la próxima ejecución automática. Los backups automáticos se identifican en el historial como tales.
+
+## Google Drive
+
+El remote productivo `nanolabs-drive` está anclado mediante `root_folder_id` a la carpeta de Drive **Backups sistemas**. Por ese motivo `RCLONE_PATH=/` representa la raíz correcta dentro de ese remote.
+
+El archivo:
+
+```text
+/opt/apps/nanocontrol/secrets/rclone.conf
+```
+
+debe contener el remote cuyo nombre coincide con `RCLONE_REMOTE`.
+
+### Diagnóstico
+
+Desde el panel, **Probar Drive**:
+
+1. valida que exista `RCLONE_REMOTE`;
+2. valida que exista `rclone.conf`;
+3. ejecuta una prueba real de subida con un archivo de texto sin datos productivos;
+4. elimina el archivo de prueba local;
+5. muestra la etapa exacta del fallo: configuración, creación de carpeta o subida;
+6. conserva el último estado y detalle de error en la SQLite de NanoControl.
+
+Cuando una copia a Drive falla después de generar correctamente el dump, el backup local sigue quedando disponible y puede usarse **Reintentar Drive** sin volver a leer la base productiva.
+
+Los mensajes de diagnóstico se filtran para no mostrar tokens, contraseñas ni secretos conocidos.
+
+## Backups
+
+Antes de comenzar un dump se exigen al menos 10 GB libres.
+
+Los nuevos archivos se generan primero con extensión parcial y solo se renombran al nombre final cuando la operación termina correctamente.
+
+Formatos:
+
+- PostgreSQL: formato custom de `pg_dump`.
+- MySQL/MariaDB: SQL comprimido con gzip y `--single-transaction`.
+- SQLite: backup consistente mediante `sqlite3 .backup`.
+
+No hay borrado automático por retención en esta versión.
+
+## Desarrollo
 
 Requiere Node.js 22.13 o superior.
 
 ```bash
+npm run build
 npm start
 ```
 
-En desarrollo, si no se definen `ADMIN_USER` y `ADMIN_PASSWORD`, la autenticación queda desactivada. En producción ambas variables son obligatorias.
+En desarrollo, si no se definen `ADMIN_USER` y `ADMIN_PASSWORD`, la autenticación queda desactivada. En producción son obligatorias.
 
-## Producción
+## Despliegue desde Git
 
-El despliegue previsto vive en `/opt/apps/nanocontrol`. Antes de iniciarlo deben existir:
-
-- `/opt/apps/nanocontrol/.env.production`, creado desde `.env.example` con una contraseña nueva.
-- `/opt/apps/nanocontrol/data` para la base del panel.
-- `/opt/apps/nanocontrol/secrets` para la configuración de Drive.
-- `/opt/backups/nanocontrol` para los nuevos archivos.
-
-El servicio publica `127.0.0.1:4173`, por lo que puede probarse sin exposición pública mediante un túnel SSH:
+Después de validar la versión:
 
 ```bash
-ssh -p 2207 -L 4173:127.0.0.1:4173 augusto@149.50.159.163
+cd /opt/apps/nanocontrol
+git pull --ff-only origin main
+docker compose -f compose.production.yml build --pull nanocontrol
+docker compose -f compose.production.yml up -d nanocontrol
+docker compose -f compose.production.yml ps
 ```
 
-Luego se abre `http://127.0.0.1:4173` en el navegador. La publicación con dominio y TLS debe añadirse al proxy solo después de validar el panel por túnel y con autorización explícita.
-
-## Google Drive
-
-Actualización 1.0.1 instalada el 11/09/2026: cuenta augustobasquez@gmail.com autorizada, remote `nanolabs-drive` anclado mediante `root_folder_id` a `18r527x6Vubak5BMRC1QZT6O3-YG1wb-A` (Backups sistemas). En producción `RCLONE_PATH=/` evita duplicar la carpeta raíz. Cada aplicación usa su nombre como subcarpeta y cada archivo incluye fecha/hora UTC de generación. Se verificó desde el servidor la subida del archivo sin datos productivos `NanoControl/conexion-drive_2026-09-11T22-36-32-134Z.txt` (64 bytes) y su existencia en Drive. Se conservó rollback en `/opt/apps/nanocontrol/rollback-before-drive-1.0.1`.
-
-Google Auth continúa en modo Prueba: conexión temporal, no considerar resuelta su continuidad para automatización hasta pasar a Producción y renovar autorización si corresponde. No se validaron dumps productivos ni restauraciones. La API autenticada `POST /api/drive/test` permite verificar una subida de texto sin consultar bases productivas.
-
-El archivo `rclone.conf` debe quedar en `/opt/apps/nanocontrol/secrets/rclone.conf`, con un remote cuyo nombre coincida con `RCLONE_REMOTE`. Nanocontrol nunca expone el contenido de ese archivo. Si falta, los backups locales siguen funcionando y el panel muestra Drive como pendiente.
-
-## Despliegue del 10 de septiembre de 2026
-
-Instalado en `/opt/apps/nanocontrol`, servicio `nanocontrol`, puerto interno 4173 y red externa `proxy`. En Nginx Proxy Manager configurar `control.nanolabs.com.ar`, esquema HTTP, destino `nanocontrol`, puerto `4173`, certificado válido y Force SSL. No publicar el puerto 4173 en todas las interfaces.
-
-Usuario inicial: `augusto`. La contraseña aleatoria está únicamente en `.env.production` del servidor (permisos 600); consultarla por SSH con `sudo` sin compartirla en chats. Las credenciales del panel son independientes de SSH.
-
-Verificados autenticación, recursos estáticos, nueve estados HTTP y métricas reales de Glances. Backups automáticos inicialmente desactivados. No se generaron dumps productivos ni se validó su restauración durante este despliegue. Google Drive requiere autorización y configuración del remote. Los archivos históricos se inventarían, no se certifica su integridad.
-
-La fecha de descarga indica transferencia HTTP completada, no confirma que el navegador haya guardado físicamente el archivo. Los respaldos nuevos se serializan, usan archivos parciales, límite de ejecución de 30 minutos y un mínimo inicial de 10 GB libres. No hay borrado automático por retención. MySQL/MariaDB requiere tablas transaccionales para consistencia con single-transaction; operaciones DDL concurrentes pueden afectar los dumps.
-
-Los montajes de origen son de solo lectura. `DAC_READ_SEARCH` permite leer archivos protegidos dentro de esos montajes sin dar acceso al control de Docker. Solo el directorio propio de configuración de rclone es escribible para permitir renovar tokens OAuth. Recursos limitados a 1 CPU, 768 MB y 64 procesos.
+Luego ejecutar las verificaciones de salud y probar un backup no destructivo antes de habilitar automatizaciones nuevas.
