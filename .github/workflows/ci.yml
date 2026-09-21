@@ -50,5 +50,11 @@ jobs:
 
           cat /tmp/health.json
           grep -q '"ok":true' /tmp/health.json
-          grep -q '"version":"1.1.1"' /tmp/health.json
+          grep -q '"version":"1.1.2"' /tmp/health.json
           test -f /tmp/nanocontrol-data/nanocontrol.sqlite
+
+          curl --fail --silent http://127.0.0.1:4173/api/dashboard >/tmp/dashboard.json
+          grep -q '"enabled":false' /tmp/dashboard.json
+
+          curl --fail --silent -X PUT             -H 'Content-Type: application/json'             -H 'X-NanoControl-Request: 1'             --data '{"enabled":true}'             http://127.0.0.1:4173/api/settings/drive >/tmp/drive-setting.json
+          grep -q '"enabled":true' /tmp/drive-setting.json

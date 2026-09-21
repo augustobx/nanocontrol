@@ -10,7 +10,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { createGzip } from 'node:zlib';
 import { pipeline } from 'node:stream/promises';
 
-const APP_VERSION = '1.1.1';
+const APP_VERSION = '1.1.2';
 const root = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.resolve(process.env.DATA_DIR || path.join(root, 'data'));
 const backupDir = path.resolve(process.env.BACKUP_DIR || path.join(dataDir, 'backups'));
@@ -140,6 +140,12 @@ const q = {
 for (const app of seedApps) {
   const [name, slug, url, ...rest] = app;
   q.seed.run(name, slug, url, url, ...rest, now());
+}
+
+if (!q.setting.get('drive_backups_enabled')) q.upsertSetting.run('drive_backups_enabled','0');
+
+function globalDriveEnabled() {
+  return q.setting.get('drive_backups_enabled')?.value === '1';
 }
 
 function localParts(date, timeZone) {
@@ -588,9 +594,10 @@ async function performBackup(app,triggerType) {
   await mkdir(appDir,{recursive:true});
   const filename = app.slug + '_' + stamp + extension;
   const filePath = path.join(appDir,filename);
+  const shouldUploadToDrive = globalDriveEnabled() && !!app.drive_enabled;
   const inserted = q.insertBackup.run(
     app.id,filename,filePath,0,'running','nanocontrol',
-    app.drive_enabled ? 'pending' : 'disabled',
+    shouldUploadToDrive ? 'pending' : 'disabled',
     null,null,triggerType,now()
   );
   const backupId = Number(inserted.lastInsertRowid);
@@ -633,11 +640,11 @@ async function performBackup(app,triggerType) {
     await rename(partialPath,filePath);
     const info = await stat(filePath);
 
-    let driveStatus = app.drive_enabled ? 'pending' : 'disabled';
+    let driveStatus = shouldUploadToDrive ? 'pending' : 'disabled';
     let driveError = null;
     let driveAttemptedAt = null;
 
-    if (app.drive_enabled) {
+    if (shouldUploadToDrive) {
       driveAttemptedAt = now();
       try {
         driveStatus = await uploadDrive(filePath,filename,app.name);
@@ -659,6 +666,7 @@ async function performBackup(app,triggerType) {
 }
 
 async function retryDrive(backupId) {
+  if (!globalDriveEnabled()) throw new Error('Google Drive está desactivado en Configuración.');
   const backup = q.backup.get(backupId);
   if (!backup || backup.status !== 'ready' || !existsSync(backup.file_path)) throw new Error('Backup no disponible');
   try {
@@ -761,6 +769,7 @@ async function dashboard() {
       timeZone:defaultTimeZone
     },
     drive:{
+      enabled:globalDriveEnabled(),
       configured:drive.configured,
       remote:drive.remote || null,
       path:drive.folder || '/',
@@ -791,6 +800,16 @@ function normalizedApp(input) {
 async function api(req,res,url) {
   if (req.method === 'GET' && url.pathname === '/api/healthz') return sendJson(res,200,{ok:true,version:APP_VERSION});
   if (req.method === 'GET' && url.pathname === '/api/dashboard') return sendJson(res,200,await dashboard());
+
+  if (req.method === 'PUT' && url.pathname === '/api/settings/drive') {
+    try {
+      const input = await bodyJson(req);
+      q.upsertSetting.run('drive_backups_enabled',input.enabled ? '1' : '0');
+      return sendJson(res,200,{enabled:globalDriveEnabled()});
+    } catch (error) {
+      return sendJson(res,400,{error:error.message});
+    }
+  }
 
   if (req.method === 'POST' && url.pathname === '/api/drive/test') {
     try {
