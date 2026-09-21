@@ -124,7 +124,7 @@ function renderBackups(data){
   const items=data.backups.slice(0,12).map(item=>{
     const running=item.status==='running';
     const failed=item.status==='failed';
-    const retry= item.status==='ready'&&item.drive_status==='failed'
+    const retry= data.drive.enabled&&item.status==='ready'&&item.drive_status==='failed'
       ? '<button class="retry-drive" data-retry-drive="'+item.id+'" '+(state.loadingDrive.has(item.id)?'disabled':'')+'>'+(state.loadingDrive.has(item.id)?'Reintentando…':'Reintentar Drive')+'</button>'
       : '';
     const error=item.drive_status==='failed'&&item.drive_error
@@ -170,19 +170,28 @@ function renderAutomation(data){
     : '<div class="empty small-empty">Ninguna aplicación tiene backup automático.</div>';
 
   const drive=data.drive;
+  const globallyEnabled=!!drive.enabled;
   const configured=drive.configured;
   const failed=drive.status==='failed';
   const connected=drive.status==='connected';
 
-  $('#drive-title').textContent=!configured?'Google Drive no configurado':failed?'Google Drive con error':connected?'Google Drive conectado':'Google Drive configurado';
-  $('#drive-path').textContent=configured
-    ? (drive.remote+': '+(drive.path||'/')+(drive.checkedAt?' · probado '+relative(drive.checkedAt):' · sin prueba reciente'))
-    : 'Falta remote o rclone.conf';
-  $('#drive-ok').textContent=connected?'✓':failed?'×':'!';
-  $('#drive-ok').className=connected?'ok':failed?'danger-icon':'warn-icon';
+  if(!globallyEnabled){
+    $('#drive-title').textContent='Google Drive desactivado';
+    $('#drive-path').textContent='Los backups siguen guardándose localmente y quedan listos para descargar';
+    $('#drive-ok').textContent='—';
+    $('#drive-ok').className='muted-pill';
+    $('#test-drive').disabled=false;
+  }else{
+    $('#drive-title').textContent=!configured?'Google Drive no configurado':failed?'Google Drive con error':connected?'Google Drive conectado':'Google Drive configurado';
+    $('#drive-path').textContent=configured
+      ? (drive.remote+': '+(drive.path||'/')+(drive.checkedAt?' · probado '+relative(drive.checkedAt):' · sin prueba reciente'))
+      : 'Falta remote o rclone.conf';
+    $('#drive-ok').textContent=connected?'✓':failed?'×':'!';
+    $('#drive-ok').className=connected?'ok':failed?'danger-icon':'warn-icon';
+  }
 
   const error=$('#drive-error');
-  if(failed&&drive.error){
+  if(globallyEnabled&&failed&&drive.error){
     error.textContent=(drive.stage?'Etapa '+drive.stage+': ':'')+drive.error+(drive.action?' '+drive.action:'');
     error.classList.remove('hidden');
   }else{
@@ -350,9 +359,38 @@ $$('a[href^="#"]').forEach(link=>link.addEventListener('click',()=>{
 
 $('#refresh').addEventListener('click',()=>load());
 $('#open-app').addEventListener('click',()=>$('#app-dialog').showModal());
+$('#open-settings').addEventListener('click',()=>{
+  const drive=state.data?.drive;
+  if(!drive)return;
+  const form=$('#settings-form');
+  form.elements.driveBackupsEnabled.checked=!!drive.enabled;
+  $('#settings-drive-status').textContent=drive.enabled
+    ? 'Las copias externas están activadas'
+    : 'Solo backups locales; automatizaciones continúan activas';
+  $('#settings-drive-badge').textContent=drive.enabled?'ACTIVO':'DESACTIVADO';
+  $('#settings-drive-badge').className='settings-badge '+(drive.enabled?'on':'off');
+  $('#settings-dialog').showModal();
+});
 $('#test-drive').addEventListener('click',testDrive);
 $('#schedule-type').addEventListener('change',updateScheduleFields);
 $('#schedule-form').addEventListener('input',updateSchedulePreview);
+
+$('#settings-form').addEventListener('submit',async event=>{
+  event.preventDefault();
+  if(event.submitter?.value==='cancel'){
+    $('#settings-dialog').close();
+    return;
+  }
+  const enabled=event.currentTarget.elements.driveBackupsEnabled.checked;
+  try{
+    await request('/api/settings/drive',{method:'PUT',body:JSON.stringify({enabled})});
+    $('#settings-dialog').close();
+    toast(enabled?'Backups a Google Drive activados':'Google Drive desactivado. Los backups seguirán guardándose localmente.');
+    await load(true);
+  }catch(error){
+    toast(error.message,'error');
+  }
+});
 
 $('#schedule-form').addEventListener('submit',async event=>{
   event.preventDefault();
