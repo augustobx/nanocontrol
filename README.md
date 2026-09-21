@@ -2,7 +2,7 @@
 
 Panel interno de NanoLabs para observar aplicaciones productivas, consultar métricas desde Glances y gestionar backups locales y externos sin ejecutar comandos dentro de los contenedores existentes.
 
-**Versión actual: 1.1.2**
+**Versión actual: 1.1.3**
 
 ## Qué incluye
 
@@ -64,7 +64,7 @@ https://control.nanolabs.com.ar
 El contenedor productivo de esta versión es:
 
 ```text
-nanocontrol:1.1.2
+nanocontrol:1.1.3
 ```
 
 ## Configuración
@@ -81,7 +81,7 @@ BACKUP_TIME_ZONE=America/Argentina/Buenos_Aires
 
 Las credenciales reales permanecen únicamente en `.env.production`.
 
-## Automatización 1.1.2
+## Automatización 1.1.3
 
 La configuración de cada aplicación se guarda en la SQLite propia del panel. La actualización desde 1.0.1 realiza una migración aditiva automática al arrancar y conserva aplicaciones, historial y configuración existente.
 
@@ -187,3 +187,10 @@ Cuando Google Drive está desactivado:
 La preferencia `drive_enabled` de cada aplicación se conserva como segundo nivel. Una copia externa solo se intenta cuando **el interruptor global está activo y la aplicación permite Drive**.
 
 El botón **Probar Drive** sigue disponible para diagnosticar la conexión antes de volver a activar las copias externas.
+
+
+## Limpieza de estado — 1.1.3
+
+- Cuando Google Drive está desactivado, el dashboard informa `status: disabled` y no expone errores OAuth históricos.
+- Las aplicaciones con automatización desactivada limpian cualquier `next_backup_at` residual al iniciar.
+- Estas correcciones no modifican los backups existentes ni las automatizaciones activas.
