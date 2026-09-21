@@ -1,4 +1,4 @@
-"""Read-only production verification for NanoControl 1.1.1."""
+"""Read-only production verification for NanoControl 1.1.2."""
 from pathlib import Path
 import base64
 import json
@@ -39,7 +39,7 @@ response = urllib.request.urlopen(
 data = json.load(response)
 
 print('Version:', data.get('version'))
-assert data.get('version') == '1.1.1'
+assert data.get('version') == '1.1.2'
 
 print('Telemetry:', json.dumps(data['server']))
 for app in data['apps']:
@@ -55,7 +55,7 @@ for app in data['apps']:
 print('Backups registered:', len(data['backups']))
 print('Automations enabled:', data['automation']['enabledCount'])
 print('Automation timezone:', data['automation']['timeZone'])
-print('Drive configured:', data['drive']['configured'])
+print('Drive backups enabled:', data['drive']['enabled'])\nprint('Drive configured:', data['drive']['configured'])
 print('Drive status:', data['drive'].get('status'))
 if data['drive'].get('error'):
     print('Drive last error:', data['drive']['error'])
